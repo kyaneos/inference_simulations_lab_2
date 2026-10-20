@@ -176,8 +176,6 @@ What happens if you vary the random seed?
 
 # Part 2: Simulating the null distribution
 
-(STOP HERE AND PAUSE FOR GROUP DISCUSSION)
-
 Visualizing the null distribution. How can we actually visualize the NULL hypothesis and distribution? It's a little tricky, but we can rely on simulation to help us.
 
 ### Method 1: Simulation
@@ -305,15 +303,13 @@ ggplot(data = tea_data_highn_shuffled_summary, aes(x=delta)) +
 
 And we can THEN calculate the p-value by using some basic data wrangling -- it is defined as the proportion of condition differences (treatment - control) that were as or more extreme than the one we observed.
 
-If this feels tough, don't worry - we will go over these concepts more again on Friday!
-
 ```{r}
 # two-sided: shuffled differences at least as far from zero as the observed one
 tea_data_highn_shuffled_summary |>
   summarize(p_value = mean(abs(delta) >= abs(difference_actual)))
 ```
 
-You can also see this if you plot the distributions of the null vs empirical simulations next to each other (blue = null, which is appropriately centered at zero. This should remind you of the cohen's d web app we looked at!)
+You can also see this if you plot the distributions of the null vs empirical simulations next to each other. Blue = the shuffled (null) differences, which are appropriately centered at zero. Gray = the 1000 simulated experiments from `samps_highn`, where the true effect is delta = 1.5. This should remind you of the cohen's d web app we looked at!
 
 ```{r}
 ggplot(data=tea_data_highn_shuffled_summary, aes(x=delta)) +
@@ -322,10 +318,6 @@ ggplot(data=tea_data_highn_shuffled_summary, aes(x=delta)) +
 ```
 
 # Part 3: Calculating confidence intervals
-
-(STOP HERE AND PAUSE FOR GROUP DISCUSSION)
-
-Honestly, I doubt you will get this far in lab -- but if you do, there are two extra pieces of material that are I think are foundational material.
 
 ## Confidence intervals
 
@@ -383,6 +375,8 @@ num_observations = length(tea_dataset$rating)
 df = num_observations-2 # for two sample t.test
 tea_ci_lower_ttest <- delta_hat - tea_se * qt(0.975,df)
 tea_ci_upper_ttest <- delta_hat + tea_se * qt(0.975,df)
+
+c(tea_ci_lower_ttest, tea_ci_upper_ttest) # our by-hand 95% CI
 ```
 The above code does this by hand - but it's to show you what this function is doing under the hood.
 
@@ -481,7 +475,7 @@ mean(all_results$pvalue < .05)
 ```{r}
 all_results_high_n=tibble() 
 
-for (this_sim in 1:500) {
+for (this_sim in 1:1000) {
   this_experiment = samps_highn %>%
     filter(sim==this_sim) 
   
@@ -506,8 +500,59 @@ hist(all_results_high_n$pvalue)
 mean(all_results_high_n$pvalue >= .05)
 ```
 
+# Part 5: Power curves
+
+In Part 4 you counted how often experiments with 48 participants and a true effect of delta = 1.5 came out significant. That proportion is the study's **power**: the probability of getting p < .05 when there really is an effect. Here you will estimate power for many sample sizes and effect sizes at once, and plot it.
+
+`run_one_experiment()` simulates one experiment with our `make_tea_data()` function and returns its p-value. Run this chunk a few times: you get a different p-value each time.
+
+```{r}
+run_one_experiment <- function(n_total, delta) {
+  this_experiment <- make_tea_data(n_total = n_total, delta = delta)
+  t.test(rating ~ condition, data = this_experiment, var.equal = TRUE)$p.value
+}
+
+run_one_experiment(n_total = 48, delta = 1.5)
+```
+
+```{r}
+estimate_power <- function(n_total, delta, n_sims = 500) {
+  p_values <- map_dbl(1:n_sims, \(i) run_one_experiment(n_total, delta)) # simulate n_sims experiments
+  mean(p_values < .05) # proportion significant
+}
+
+estimate_power(n_total = 48, delta = 1.5) # close to 1 minus the miss rate from Part 4
+estimate_power(n_total = 48, delta = 0) # close to .05
+```
+
+Now estimate power for every combination of sample size and effect size. `expand_grid()` makes a tibble with one row per combination, and `map2_dbl()` calls `estimate_power()` once per row. This runs 20,000 simulated experiments, so give it about 30 seconds.
+
+```{r}
+power_curve <- expand_grid(n_total = seq(10, 100, by = 10), # total participants (keep these even, so both conditions are the same size)
+                           delta = c(0, 0.5, 1, 1.5)) |>
+  mutate(power = map2_dbl(n_total, delta, \(n, d) estimate_power(n, d)))
+```
+
+```{r}
+ggplot(power_curve, aes(x = n_total, y = power, color = factor(delta))) +
+  geom_line() +
+  geom_point() +
+  geom_hline(yintercept = .8, linetype = "dashed") + # conventional target for power
+  geom_hline(yintercept = .05, linetype = "dotted") + # alpha
+  labs(x = "total participants (n_total)",
+       y = "power (proportion of experiments with p < .05)",
+       color = "delta") +
+  theme_classic()
+```
+
+1.  When delta = 0, "power" is just the false positive rate: about .05 at every sample size. There is no effect to detect, so more participants doesn't help; alpha stays at .05.
+2.  With sigma = 1.25, delta = 1 reaches 80% power at roughly 50-60 participants in total. Delta = 0.5 only gets to about 50% power at 100 participants.
+3.  About 10%, barely above alpha. A study with power that low misses the real effect almost every time, and when it does come out significant, the estimated effect is likely to be much bigger than the true one.
+
+**Bonus** Delta = 0.5 (Cohen's d = 0.4) needs roughly 220 participants in total (about 110 per condition) for 80% power. That is a bit more than a textbook power calculation for d = 0.4 gives, because rounding the ratings to whole numbers adds noise.
+
 # Additional Exercises
 
 1.  Now go back (earlier in the code) and modify the DELTA in the simulation functions to be smaller so that there is only a small difference between groups. Is it still significant?
 
-2.  Rewrite this code with the the smaller sample size simulations. What changes?
+2.  Rewrite this code with the smaller sample size simulations. What changes?

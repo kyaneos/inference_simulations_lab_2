@@ -12,6 +12,7 @@ When you are done you will have:
 - Computed a permutation *p*-value and a confidence interval by hand
 - Measured the false-positive rate when the null is true, and how often a real
   effect is missed
+- Estimated and plotted power curves across sample sizes and effect sizes
 
 The running example is the "lady tasting tea": do people rate tea differently
 when the milk goes in first?
@@ -54,9 +55,7 @@ objects that you create earlier (`tea_data_highn`, `samps_highn`,
 | 2. Simulating the null distribution | Build the null distribution by simulating δ = 0, then by shuffling condition labels; compute a permutation *p*-value |
 | 3. Confidence intervals | Compute a CI by hand, check it against `t.test()`, and plot CIs vs. standard errors |
 | 4. *p*-values across experiments | Run a t-test on each of the 1,000 simulated experiments, with and without a true effect |
-
-The lab marks two places to stop for group discussion. Parts 3 and 4 are
-there for those who get further. Not finishing them in class is expected.
+| 5. Power curves | Write a function that estimates power by simulation, then plot power against sample size for several effect sizes |
 
 `error: true` is set at the top of the file, so **Render works even while
 chunks are unfinished**: the unfinished chunks show their error in red.
@@ -88,6 +87,7 @@ inference_simulations_lab_2/
    and write it, then rerun from there.
 3. **Your numbers differ from the solutions:** expected, unless you render from
    scratch. Every rerun of a chunk draws new random numbers.
-4. **The 1,000-experiment loops in Part 4 take a while**, usually a few
-   seconds and up to a minute on older laptops. Let them finish.
+4. **The 1,000-experiment loops in Part 4 and the power curve in Part 5 take
+   a while**, usually a few seconds to half a minute, and longer on older
+   laptops. Let them finish.
 5. Still stuck? Post the **exact** error message in the course forum.
